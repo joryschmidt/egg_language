@@ -50,7 +50,8 @@ function parse(program){
 
 function evaluate(expr, env){
 	switch(expr.type){
-		case "value": return expr.value;
+		case "value": 
+			return expr.value;
 		case "word":
 			if (expr.name in env)
 				return env[expr.name];
@@ -60,7 +61,7 @@ function evaluate(expr, env){
 			if (expr.operator.type == "word" && expr.operator.name in specialForms)
 				return specialForms[expr.operator.name](expr.args, env);
 			var op = evaluate(expr.operator, env);
-			if (typeOf op != function)
+			if (typeof op != "function")
 				throw new TypeError("Applying a non-function");
 			return op.apply(null, expr.args.map(function(arg){
 				return evaluate(arg, env);
@@ -82,7 +83,7 @@ specialForms['if'] = function(args, env){
 specialForms["while"] = function(args, env){
 	if (args.length != 2)
 		throw new SyntaxError("Bad number of args to while");
-	while (evaluate(args[0], env !== false))
+	while (evaluate(args[0], env) !== false)
 		evaluate(args[1], env);
 	return false;
 };
@@ -97,8 +98,29 @@ specialForms["do"] = function(args, env){
 
 specialForms["define"] = function(args, env){
 	if (args.length != 2 || args[0].type != "word")
-		throw new SyntaxError("Bad use of define");
+		throw new SyntaxError("Incorrect use of define");
 	var value = evaluate(args[1], env);
 	env[args[0].name] = value;
 	return value;
 };
+
+var topEnv = Object.create(null);
+
+topEnv["true"] = true;
+topEnv["false"] = false;
+
+["+", "-", "*", "/", "==", "<", ">"].forEach(function(op) {
+  topEnv[op] = new Function("a, b", "return a " + op + " b;");
+});
+
+topEnv["print"] = function(value){
+	console.log(value);
+	return value;
+};
+
+function run(){
+	var env = Object.create(topEnv);
+	var program = Array.prototype.slice.call(arguments, 0).join("\n");
+	return evaluate(parse(program), env);
+}
+
